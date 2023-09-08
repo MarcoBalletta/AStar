@@ -23,7 +23,6 @@ public class AStarCalculator : MonoBehaviour
     [SerializeField] private Vector2Int lastCoordinates;
     private TokenGenerator tokenGenerator;
 
-    // Start is called before the first frame update
     void Start()
     {
         lineRenderer = GetComponent<LineRenderer>();
@@ -31,14 +30,9 @@ public class AStarCalculator : MonoBehaviour
         TryGetComponent(out tokenGenerator);
     }
 
-    // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(startPathCalculationKeycode) && !pathSearching)
-        {
-            //SearchNextStep(mapTiles[lastCoordinates]);
-            SearchNextStepWhile(gridManager.MapTiles[lastCoordinates]);
-        }
+        //create prefab tokens
         if (Input.GetKeyDown(startPrefabPositionKeycode))
         {
             tokenGenerator.ClearTokens();
@@ -49,12 +43,22 @@ public class AStarCalculator : MonoBehaviour
             }
             SetStartEndPosition();
         }
+
+        //calculate and create path
+        if (Input.GetKeyDown(startPathCalculationKeycode) && !pathSearching)
+        {
+            //SearchNextStep(mapTiles[lastCoordinates]);
+            SearchNextStepWhile(gridManager.MapTiles[lastCoordinates]);
+        }
+
+        //move start token to end token
         if (Input.GetKeyDown(startMovePlayerKeycode) && tokenGenerator.Tokens.Count > 0 && pathSearched)
         {
             StartCoroutine(MovePlayer());
         }
     }
 
+    //calculate the path and traces with line renderer at the end
     private void SearchNextStepWhile(TileData actualData)
     {
         pathSearching = true;
@@ -100,47 +104,48 @@ public class AStarCalculator : MonoBehaviour
         TracePath();
     }
 
-    private void SearchNextStep(TileData actualData)
-    {
-        if (actualData.ToVector() == endCoordinates)
-        {
-            TracePath();
-            return;
-        }
+    //private void SearchNextStep(TileData actualData)
+    //{
+    //    if (actualData.ToVector() == endCoordinates)
+    //    {
+    //        TracePath();
+    //        return;
+    //    }
 
-        foreach (Vector2Int direction in dir.directions)
-        {
-            Vector2Int neighbourCell = new Vector2Int(actualData.row + direction.x, actualData.column + direction.y);
-            if (IsClosed(gridManager.MapTiles[neighbourCell])) continue;
-            if (gridManager.CheckGridBounds(neighbourCell)) continue;
-            if (!gridManager.CheckWalkable(neighbourCell)) continue;
+    //    foreach (Vector2Int direction in dir.directions)
+    //    {
+    //        Vector2Int neighbourCell = new Vector2Int(actualData.row + direction.x, actualData.column + direction.y);
+    //        if (IsClosed(gridManager.MapTiles[neighbourCell])) continue;
+    //        if (gridManager.CheckGridBounds(neighbourCell)) continue;
+    //        if (!gridManager.CheckWalkable(neighbourCell)) continue;
 
-            float g = actualData.aStarData.g + Vector2.Distance(gridManager.GetWorld2DPosition(actualData.ToVector()), gridManager.GetWorld2DPosition(neighbourCell));
-            float h = Vector2.Distance(gridManager.GetWorld2DPosition(neighbourCell), gridManager.GetWorld2DPosition(endCoordinates));
-            float f = g + h;
+    //        float g = actualData.aStarData.g + Vector2.Distance(gridManager.GetWorld2DPosition(actualData.ToVector()), gridManager.GetWorld2DPosition(neighbourCell));
+    //        float h = Vector2.Distance(gridManager.GetWorld2DPosition(neighbourCell), gridManager.GetWorld2DPosition(endCoordinates));
+    //        float f = g + h;
 
-            //setup TextMeshPro
-            gridManager.MapTiles[neighbourCell].tile.UiManager.SetFGHValues(f, g, h);
+    //        //setup TextMeshPro
+    //        gridManager.MapTiles[neighbourCell].tile.UiManager.SetFGHValues(f, g, h);
 
-            //WIP
-            if (!UpdateTileData(gridManager.MapTiles[neighbourCell], g, h, f, actualData))
-            {
-                AddToOpenList(neighbourCell);
-                //openList.Add(mapTiles[neighbourCell]);
-                gridManager.MapTiles[neighbourCell].aStarData.SetupAStarData(g, h, f, actualData);
-                //mapTiles[neighbourCell].ChangeMaterial(mapTiles[neighbourCell].tile.open);
-            }
-        }
+    //        //WIP
+    //        if (!UpdateTileData(gridManager.MapTiles[neighbourCell], g, h, f, actualData))
+    //        {
+    //            AddToOpenList(neighbourCell);
+    //            //openList.Add(mapTiles[neighbourCell]);
+    //            gridManager.MapTiles[neighbourCell].aStarData.SetupAStarData(g, h, f, actualData);
+    //            //mapTiles[neighbourCell].ChangeMaterial(mapTiles[neighbourCell].tile.open);
+    //        }
+    //    }
 
-        openList = openList.OrderBy(tileData => tileData.aStarData.f).ThenBy(tileData => tileData.aStarData.h).ToList();
-        TileData firstData = openList.ElementAt(0);
-        //closedList.Add(firstData);
-        AddToClosedList(firstData.ToVector());
-        openList.RemoveAt(0);
-        //firstData.ChangeMaterial(firstData.tile.closed);
-        lastCoordinates = firstData.ToVector();
-    }
+    //    openList = openList.OrderBy(tileData => tileData.aStarData.f).ThenBy(tileData => tileData.aStarData.h).ToList();
+    //    TileData firstData = openList.ElementAt(0);
+    //    //closedList.Add(firstData);
+    //    AddToClosedList(firstData.ToVector());
+    //    openList.RemoveAt(0);
+    //    //firstData.ChangeMaterial(firstData.tile.closed);
+    //    lastCoordinates = firstData.ToVector();
+    //}
 
+    //updats the data in the tile
     private bool UpdateTileData(TileData data, float g, float h, float f, TileData parent)
     {
         foreach (TileData tileData in openList)
@@ -162,18 +167,21 @@ public class AStarCalculator : MonoBehaviour
         return closedList.Contains(data);
     }
 
+    //adds to open list and changes material
     private void AddToOpenList(Vector2Int coordinates)
     {
         openList.Add(gridManager.MapTiles[coordinates]);
         gridManager.MapTiles[coordinates].ChangeMaterial(gridManager.MapTiles[coordinates].tile.open);
     }
 
+    //adds to closed list and changes material
     private void AddToClosedList(Vector2Int coordinates)
     {
         closedList.Add(gridManager.MapTiles[coordinates]);
         gridManager.MapTiles[coordinates].ChangeMaterial(gridManager.MapTiles[coordinates].tile.closed);
     }
 
+    //reset of tiles to normal
     public void ReturnToNormalTiles(Vector2Int coordinates)
     {
         if (openList.Contains(gridManager.MapTiles[coordinates]))
@@ -189,6 +197,7 @@ public class AStarCalculator : MonoBehaviour
         }
     }
 
+    //line renderer of the path
     private void TracePath()
     {
         pathPositions.Clear();
@@ -205,12 +214,14 @@ public class AStarCalculator : MonoBehaviour
         pathSearched = true;
     }
 
+    //add vertex to the line renderer path
     private void AddVertexToPath(Vector2Int actualPosition)
     {
         lineRenderer.positionCount++;
         lineRenderer.SetPosition(lineRenderer.positionCount - 1, gridManager.GetWorld3DPosition(actualPosition) + Vector3.up);
     }
 
+    //interpolate player's position to end token position 
     private IEnumerator MovePlayer()
     {
         int index = 0;
@@ -229,26 +240,29 @@ public class AStarCalculator : MonoBehaviour
         return to - from;
     }
 
+    //finds random position of start and end and spawns token 
     private void SetStartEndPosition()
     {
-        FindRandomPosition(ref startCoordinates, tokenGenerator.StartPrefab);
+        FindRandomPosition(ref startCoordinates);
         tokenGenerator.SpawnToken(tokenGenerator.StartPrefab, startCoordinates);
         SetupStartCoordinates();
         do
         {
-            FindRandomPosition(ref endCoordinates, tokenGenerator.EndPrefab);
+            FindRandomPosition(ref endCoordinates);
         } while (endCoordinates == startCoordinates);
 
         tokenGenerator.SpawnToken(tokenGenerator.EndPrefab, endCoordinates);
     }
 
+    //setups the start and last coordinates
     private void SetupStartCoordinates()
     {
         lastCoordinates = startCoordinates;
         AddToClosedList(startCoordinates);
     }
 
-    private void FindRandomPosition(ref Vector2Int tilePositionSelected, GameObject prefab)
+    //finds random position to assign to a specific tile and for  
+    private void FindRandomPosition(ref Vector2Int tilePositionSelected)
     {
         bool foundPosition = false;
         int numberOfTiles = gridManager.MaxColumn * gridManager.MaxRow;
